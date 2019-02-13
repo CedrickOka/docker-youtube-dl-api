@@ -1,4 +1,6 @@
 FROM phpdockerio/php73-fpm:latest
+LABEL vendor="cedrickoka/youtube-dl-api" maintainer="okacedrick@gmail.com" version="1.0.0"
+
 WORKDIR "/app"
 
 # Fix debconf warnings upon build
