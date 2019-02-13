@@ -5,6 +5,7 @@ WORKDIR "/app"
 
 # Fix debconf warnings upon build
 ARG DEBIAN_FRONTEND=noninteractive
+ARG APP_SECRET=598d01f22edceea6bf7c5ace30929f41
 
 RUN apt-get update \
     && apt-get -y install git \
@@ -27,7 +28,7 @@ RUN git clone -b 0.2.0 https://github.com/CedrickOka/youtube-dl-api.git ./ \
     && composer clear-cache
 
 ENV APP_ENV=prod
-ENV APP_SECRET=598d01f22edceea6bf7c5ace30929f41
+ENV APP_SECRET=$APP_SECRET
 ENV LC_ALL=C
 
 COPY php-ini-overrides.ini /etc/php/7.3/fpm/conf.d/99-overrides.ini
