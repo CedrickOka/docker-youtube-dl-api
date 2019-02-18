@@ -35,9 +35,9 @@ COPY php-ini-overrides.ini /etc/php/7.3/fpm/conf.d/99-overrides.ini
 COPY youtube-dl.conf /etc/youtube-dl.conf
 
 RUN chmod 0755 /etc/youtube-dl.conf \
-	&& mkdir /opt/data \
-	&& mkdir /opt/data/youtube-dl \
-	&& chmod -R 0777 /opt/data/youtube-dl
+	&& mkdir /opt/ \
+	&& mkdir /opt/youtube-dl \
+	&& chmod -R 0777 /opt/youtube-dl/downloads
 
 RUN php bin/console cache:clear -e prod --no-debug \
 	&& chmod -R 0777 /app/var/
