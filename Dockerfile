@@ -37,7 +37,9 @@ COPY youtube-dl.conf /etc/youtube-dl.conf
 
 RUN chmod 0755 /etc/youtube-dl.conf \
 	&& mkdir -p /opt/youtube-dl/downloads \
-	&& chmod -R 0777 /opt/youtube-dl/downloads
+	&& chown -R www-data:www-data /opt/youtube-dl/downloads \
+	&& chmod -R 0755 /opt/youtube-dl/downloads
+VOLUME ["/opt/youtube-dl/downloads"]
 
 RUN php bin/console cache:clear -e prod --no-debug \
 	&& chmod -R 0777 var/
