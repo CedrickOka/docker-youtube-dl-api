@@ -5,11 +5,10 @@ WORKDIR "/app"
 
 # Fix debconf warnings upon build
 ARG DEBIAN_FRONTEND=noninteractive
-ARG APP_SECRET=598d01f22edceea6bf7c5ace30929f41
 
 RUN apt-get update \
     && apt-get -y install git \
-    && apt-get -y install cron nano \
+    && apt-get -y install cron gettext-base nano \
     && apt-get -y --no-install-recommends install ffmpeg python software-properties-common wget \
     && apt-get clean; rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 
@@ -27,19 +26,23 @@ RUN git clone -b 1.0.0 https://github.com/CedrickOka/youtube-dl-api.git ./ \
     && composer install --no-dev --no-interaction --optimize-autoloader --classmap-authoritative \
     && composer clear-cache
 
+ARG APP_SECRET=598d01f22edceea6bf7c5ace30929f41
+ARG ASSETS_DIR=/opt/youtube-dl/downloads
+
 ENV APP_ENV=prod
 ENV APP_SECRET=$APP_SECRET
-ENV ASSETS_DIR=/opt/youtube-dl/downloads
+ENV ASSETS_DIR=$ASSETS_DIR
 ENV LC_ALL=C
 
 COPY php-ini-overrides.ini /etc/php/7.3/fpm/conf.d/99-overrides.ini
 COPY youtube-dl.conf /etc/youtube-dl.conf
 
-RUN chmod 0755 /etc/youtube-dl.conf \
-	&& mkdir -p /opt/youtube-dl/downloads \
-	&& chown -R www-data:www-data /opt/youtube-dl/downloads \
-	&& chmod -R 0755 /opt/youtube-dl/downloads
-VOLUME ["/opt/youtube-dl/downloads"]
+RUN envsubst < /etc/youtube-dl.conf > /etc/youtube-dl.conf \
+	&& chmod 0755 /etc/youtube-dl.conf \
+	&& mkdir -p $ASSETS_DIR \
+	&& chown -R www-data:www-data $ASSETS_DIR \
+	&& chmod -R 0755 $ASSETS_DIR
+VOLUME ["$ASSETS_DIR"]
 
 RUN php bin/console cache:clear -e prod --no-debug \
 	&& chmod -R 0777 var/
