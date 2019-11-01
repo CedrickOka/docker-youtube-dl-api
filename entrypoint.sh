@@ -1,2 +1,2 @@
 #!/bin/bash
-cron && /usr/bin/php-fpm
+cron && /usr/sbin/php-fpm7.3 --nodaemonize
