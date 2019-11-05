@@ -6,9 +6,14 @@ WORKDIR "/app"
 # Fix debconf warnings upon build
 ARG DEBIAN_FRONTEND=noninteractive
 
+# Install selected extensions and other stuff
+RUN apt-get update && \
+    apt-get -y --no-install-recommends install php7.3-intl && \
+    apt-get clean; rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
+
 RUN apt-get update && \
 	apt-get install -y cron && \
-	apt-get install -y --no-install-recommends \
+	apt-get -y --no-install-recommends install \
     	git \
     	ffmpeg \
     	gettext-base \
@@ -34,7 +39,8 @@ RUN git clone -b 1.1.1 https://github.com/CedrickOka/youtube-dl-api.git ./ && \
 ENV APP_ENV=prod
 ENV APP_SECRET=598d01f22edceea6bf7c5ace30929f41
 ENV ASSETS_DIR=/opt/youtube-dl/downloads
-ENV LC_ALL=C
+ENV LC_ALL=C.UTF-8
+ENV SHELL_VERBOSITY=3
 
 COPY php-ini-overrides.ini /etc/php/7.3/fpm/conf.d/99-overrides.ini
 COPY youtube-dl.conf /etc/youtube-dl.conf
