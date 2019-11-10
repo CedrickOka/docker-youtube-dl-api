@@ -39,6 +39,7 @@ RUN git clone -b 2.0.0 https://github.com/CedrickOka/youtube-dl-api.git ./ && \
 
 ENV APP_ENV=prod
 ENV APP_SECRET=598d01f22edceea6bf7c5ace30929f41
+ENV MESSENGER_TRANSPORT_DSN=semaphore://localhost%kernel.project_dir%/.env
 ENV ASSETS_DIR=/opt/youtube-dl/downloads
 ENV LC_ALL=C.UTF-8
 ENV SHELL_VERBOSITY=-1
