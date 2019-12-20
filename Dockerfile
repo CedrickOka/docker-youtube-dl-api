@@ -8,11 +8,16 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # Install selected extensions and other stuff
 RUN apt-get update && \
-    apt-get -y --no-install-recommends install php7.3-intl && \
+    apt-get -y --no-install-recommends install \
+    	php-amqp \
+    	php-apcu \
+    	php7.3-bcmath \
+    	php7.3-intl \
+    	php-xdebug && \
     apt-get clean; rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 
 RUN apt-get update && \
-	apt-get install -y --no-install-recommends cron && \
+	apt-get -y --no-install-recommends install cron && \
 	apt-get -y --no-install-recommends install \
     	git \
     	ffmpeg \
@@ -33,7 +38,7 @@ RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" &&
 	mv composer.phar /usr/local/bin/composer && \
 	chmod +x /usr/local/bin/composer
 
-RUN git clone -b 2.2.2 https://github.com/CedrickOka/youtube-dl-api.git ./ && \
+RUN git clone -b 2.3.0 https://github.com/CedrickOka/youtube-dl-api.git ./ && \
     composer install --no-dev --no-interaction --optimize-autoloader --classmap-authoritative && \
     composer clear-cache
 
@@ -42,8 +47,8 @@ ENV APP_LOCALE=en
 ENV APP_SECRET=598d01f22edceea6bf7c5ace30929f41
 ENV MESSENGER_TRANSPORT_DSN=semaphore://localhost%kernel.project_dir%/.env
 ENV ASSETS_DIR=/opt/youtube-dl/downloads
-ENV LC_ALL=C.UTF-8
 ENV SHELL_VERBOSITY=-1
+ENV LC_ALL=C.UTF-8
 
 COPY php-ini-overrides.ini /etc/php/7.3/fpm/conf.d/99-overrides.ini
 COPY supervisor.conf /etc/supervisor/conf.d/supervisor.conf
