@@ -67,7 +67,7 @@ RUN chmod +x /etc/cron.d/update-cron && \
 	/usr/bin/crontab /etc/cron.d/update-cron
 
 ADD entrypoint /usr/local/bin/entrypoint
-RUN	chmod +x /usr/local/bin/entrypoint
+RUN chmod +x /usr/local/bin/entrypoint
 
 ## Disable xdebug on production
 #RUN rm $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini
