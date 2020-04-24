@@ -33,7 +33,7 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 RUN curl -L https://yt-dl.org/downloads/latest/youtube-dl -o /usr/local/bin/youtube-dl && \
 	chmod a+rx /usr/local/bin/youtube-dl
 
-RUN git clone -b 3.0.1 https://github.com/CedrickOka/youtube-dl-api.git ./ && \
+RUN git clone -b 3.0.2 https://github.com/CedrickOka/youtube-dl-api.git ./ && \
     composer install --no-dev --no-interaction --optimize-autoloader --classmap-authoritative && \
     composer clear-cache
 
