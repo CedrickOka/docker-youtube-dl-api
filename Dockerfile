@@ -8,6 +8,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 ## Install system dependencies
 RUN apt-get update && \
 	apt-get -y --no-install-recommends install \
+		cron \
     	ffmpeg \
     	git \
     	gettext-base \
