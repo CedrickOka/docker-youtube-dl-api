@@ -22,8 +22,8 @@ RUN apt-get update && \
 
 ## Install php extensions
 RUN pecl install amqp apcu xdebug && \
-    docker-php-ext-enable amqp apcu  xdebug && \
-    docker-php-ext-install bcmath intl opcache
+    docker-php-ext-enable amqp apcu xdebug && \
+    docker-php-ext-install bcmath intl opcache sysvmsg
 
 ## Install composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer && \
@@ -41,7 +41,7 @@ RUN git clone -b 3.0.0 https://github.com/CedrickOka/youtube-dl-api.git ./ && \
 RUN mv $PHP_INI_DIR/php.ini-production $PHP_INI_DIR/php.ini
 COPY ./php-ini-overrides.ini $PHP_INI_DIR/conf.d/99-overrides.ini
 COPY ./php-fpm-overrides.conf /usr/local/etc/php-fpm.d/z-overrides.conf
-COPY supervisor.conf /etc/supervisor/conf.d/supervisor.conf
+COPY supervisor.conf /etc/supervisor/conf.d/messenger.conf
 COPY youtube-dl.conf /etc/youtube-dl.conf
 
 ## Change files owner to php-fpm default user
@@ -60,15 +60,20 @@ ENV PROCESS_NUMBER=2
 ENV LC_ALL=C.UTF-8
 
 # Configure crontab
-ADD crontab.txt /crontab.txt
-RUN /usr/bin/crontab /crontab.txt
+ADD crontab /etc/cron.d/update-cron
+RUN chmod +x /etc/cron.d/update-cron && \
+	touch /var/log/cron.log && \
+	ln -sf /dev/stdout /var/log/cron.log && \
+	/usr/bin/crontab /etc/cron.d/update-cron
 
-COPY entrypoint /usr/local/bin/entrypoint
+ADD entrypoint /usr/local/bin/entrypoint
 RUN	chmod +x /usr/local/bin/entrypoint
 
+## Disable xdebug on production
+#RUN rm $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini
+
 ## Cleanup
-RUN apk del dev-deps && \
-    composer global remove hirak/prestissimo && \
+RUN composer global remove hirak/prestissimo && \
     rm /usr/local/bin/composer
 
 ENTRYPOINT ["entrypoint"]
