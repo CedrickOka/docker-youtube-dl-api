@@ -1,77 +1,73 @@
-FROM phpdockerio/php73-fpm:latest
-LABEL vendor="cedrickoka/youtube-dl-api" maintainer="okacedrick@gmail.com" version="1.0.0"
-
-WORKDIR "/app"
+FROM php:7.3-fpm
+LABEL vendor="cedrickoka/youtube-dl-api" maintainer="okacedrick@gmail.com" version="2.0.0"
+WORKDIR /app
 
 # Fix debconf warnings upon build
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Install selected extensions and other stuff
+## Install system dependencies
 RUN apt-get update && \
-    apt-get -y --no-install-recommends install \
-    	php-amqp \
-    	php-apcu \
-    	php7.3-bcmath \
-    	php7.3-intl \
-    	php-xdebug && \
-    apt-get clean; rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
-
-RUN apt-get update && \
-	apt-get -y --no-install-recommends install cron && \
 	apt-get -y --no-install-recommends install \
-    	git \
     	ffmpeg \
+    	git \
     	gettext-base \
+    	libicu-dev \
+    	librabbitmq-dev \
+    	libzip-dev \
     	python \
     	software-properties-common \
-    	supervisor \
-    	wget && \
+    	supervisor && \
     apt-get clean; rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 
-RUN wget https://yt-dl.org/downloads/latest/youtube-dl -O /usr/local/bin/youtube-dl && \
-	chmod a+rx /usr/local/bin/youtube-dl && \
-	hash -r
+## Install php extensions
+RUN pecl install amqp apcu xdebug && \
+    docker-php-ext-enable amqp apcu  xdebug && \
+    docker-php-ext-install bcmath intl opcache
 
-RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && \
-	php composer-setup.php && \
-	php -r "unlink('composer-setup.php');" && \
-	mv composer.phar /usr/local/bin/composer && \
-	chmod +x /usr/local/bin/composer
+## Install composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer && \
+	composer global require hirak/prestissimo
 
-RUN git clone -b 2.3.0 https://github.com/CedrickOka/youtube-dl-api.git ./ && \
+## Install youtube-dl
+RUN curl -L https://yt-dl.org/downloads/latest/youtube-dl -o /usr/local/bin/youtube-dl && \
+	chmod a+rx /usr/local/bin/youtube-dl
+
+RUN git clone -b 3.0.0 https://github.com/CedrickOka/youtube-dl-api.git ./ && \
     composer install --no-dev --no-interaction --optimize-autoloader --classmap-authoritative && \
     composer clear-cache
 
-ENV APP_ENV=prod
-ENV APP_LOCALE=en
-ENV APP_SECRET=598d01f22edceea6bf7c5ace30929f41
-ENV MESSENGER_TRANSPORT_DSN=semaphore://localhost%kernel.project_dir%/.env
-ENV ASSETS_DIR=/opt/youtube-dl/downloads
-ENV SHELL_VERBOSITY=-1
-ENV LC_ALL=C.UTF-8
-
-COPY php-ini-overrides.ini /etc/php/7.3/fpm/conf.d/99-overrides.ini
+## Copy php default configuration
+RUN mv $PHP_INI_DIR/php.ini-production $PHP_INI_DIR/php.ini
+COPY ./php-ini-overrides.ini $PHP_INI_DIR/conf.d/99-overrides.ini
+COPY ./php-fpm-overrides.conf /usr/local/etc/php-fpm.d/z-overrides.conf
 COPY supervisor.conf /etc/supervisor/conf.d/supervisor.conf
 COPY youtube-dl.conf /etc/youtube-dl.conf
 
+## Change files owner to php-fpm default user
 RUN mkdir -p /opt/youtube-dl/downloads && \
-	chown -R www-data:www-data /opt/youtube-dl/downloads && \
-	chmod -R 0755 /opt/youtube-dl/downloads && \
-	chmod 0755 /etc/youtube-dl.conf
+	chown -R www-data:www-data ./ /opt/youtube-dl/downloads && \
+	chmod -R 0755 /etc/youtube-dl.conf /opt/youtube-dl/downloads
 
-RUN php bin/console cache:clear -e prod --no-debug && \
-	chmod -R 0777 var/
+ENV APP_ENV=prod
+ENV APP_LOCALE=en
+ENV APP_SECRET=3e71c228f60ccb937b7784cc072e0b61
+ENV MESSENGER_TRANSPORT_DSN=semaphore://localhost%kernel.project_dir%/.env
+ENV ASSETS_DIR=/opt/youtube-dl/downloads
+ENV FILE_UNIX_OWNER=www-data
+ENV SHELL_VERBOSITY=-1
+ENV PROCESS_NUMBER=2
+ENV LC_ALL=C.UTF-8
 
-# Create cron log
-RUN touch /var/log/cron.log && \
-	ln -sf /dev/stdout /var/log/cron.log
+# Configure crontab
+ADD crontab.txt /crontab.txt
+RUN /usr/bin/crontab /crontab.txt
 
-# Add crontab file
-ADD cron /etc/cron.d/cron
-RUN chmod 0644 /etc/cron.d/cron && \
-	/usr/bin/crontab /etc/cron.d/cron
+COPY entrypoint /usr/local/bin/entrypoint
+RUN	chmod +x /usr/local/bin/entrypoint
 
-ADD entrypoint.sh /entrypoint.sh
-RUN chmod 0777 /entrypoint.sh
+## Cleanup
+RUN apk del dev-deps && \
+    composer global remove hirak/prestissimo && \
+    rm /usr/local/bin/composer
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["entrypoint"]

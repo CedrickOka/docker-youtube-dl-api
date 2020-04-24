@@ -1,0 +1,19 @@
+#!/bin/bash
+
+printenv | sed 's/^\([^=]*\)\=\(.*\)$/\1\="\2"/g' | sed 's/^\(_\)\=\(.*\)$//g' > /app/.env.prod.local
+
+# Prepare prod env
+php /app/bin/console cache:clear -e prod --no-debug
+chmod -R 0777 /app/var/
+
+envsubst < /etc/youtube-dl.conf > /etc/youtube-dl.conf
+
+# Configure and start supervisor
+envsubst < /etc/supervisor/conf.d/supervisor.conf > /etc/supervisor/conf.d/supervisor.conf
+supervisord -c /etc/supervisor/supervisord.conf
+
+# start cron
+/usr/sbin/crond -b -l 8 -L /dev/stdout
+
+# Start PHP-FPM daemon
+php-fpm
