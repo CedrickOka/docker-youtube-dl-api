@@ -1,48 +1,52 @@
-FROM php:7.3-fpm
-LABEL vendor="cedrickoka/youtube-dl-api" maintainer="okacedrick@gmail.com" version="2.0.0"
+FROM php:7.4-fpm-alpine
+LABEL vendor="cedrickoka/youtube-dl-api" maintainer="okacedrick@gmail.com" version="3.0.0"
+
 WORKDIR /app
 
-# Fix debconf warnings upon build
-ARG DEBIAN_FRONTEND=noninteractive
-
 ## Install system dependencies
-RUN apt-get update && \
-	apt-get -y --no-install-recommends install \
-		cron \
+RUN apk update && \
+    apk add --no-cache --virtual dev-deps \
+	    autoconf \
+	    gcc \
+	    git \
+	    g++ \
+	    make && \
+    apk add --no-cache \
     	ffmpeg \
+    	icu-dev \
     	git \
-    	gettext-base \
-    	libicu-dev \
-    	librabbitmq-dev \
+    	libxml2-dev \
     	libzip-dev \
-    	python \
-    	software-properties-common \
-    	supervisor && \
-    apt-get clean; rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
+    	python3 \
+    	py3-setuptools \
+    	supervisor \
+    	zlib-dev
 
 ## Install php extensions
-RUN pecl install amqp apcu xdebug && \
-    docker-php-ext-enable amqp apcu xdebug && \
-    docker-php-ext-install bcmath intl opcache sysvmsg
+RUN pecl install apcu && \
+    docker-php-ext-enable apcu && \
+    docker-php-ext-install intl opcache sysvmsg
 
-## Install composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer && \
-	composer global require hirak/prestissimo
+## Copy php default configuration
+RUN mv $PHP_INI_DIR/php.ini-production $PHP_INI_DIR/php.ini
+COPY php-ini-overrides.ini $PHP_INI_DIR/conf.d/99-overrides.ini
+COPY php-fpm-overrides.conf /usr/local/etc/php-fpm.d/z-overrides.conf
 
 ## Install youtube-dl
 RUN curl -L https://yt-dl.org/downloads/latest/youtube-dl -o /usr/local/bin/youtube-dl && \
 	chmod a+rx /usr/local/bin/youtube-dl
 
-RUN git clone -b 3.1.0 https://github.com/CedrickOka/youtube-dl-api.git ./ && \
+## Install composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer && \
+	composer global require hirak/prestissimo
+
+RUN git clone -b 3.1.1 https://github.com/CedrickOka/youtube-dl-api.git ./ && \
     composer install --no-dev --no-interaction --optimize-autoloader --classmap-authoritative && \
     composer clear-cache
 
-## Copy php default configuration
-RUN mv $PHP_INI_DIR/php.ini-production $PHP_INI_DIR/php.ini
-COPY ./php-ini-overrides.ini $PHP_INI_DIR/conf.d/99-overrides.ini
-COPY ./php-fpm-overrides.conf /usr/local/etc/php-fpm.d/z-overrides.conf
-COPY supervisor.conf /etc/supervisor/conf.d/messenger.conf
+## Add dependencies files
 COPY youtube-dl.conf /etc/youtube-dl.conf
+COPY supervisor.ini /etc/supervisor.d/messenger.ini
 
 ## Change files owner to php-fpm default user
 RUN mkdir -p /opt/youtube-dl/downloads && \
@@ -60,20 +64,19 @@ ENV PROCESS_NUMBER=2
 ENV LC_ALL=C.UTF-8
 
 # Configure crontab
-ADD crontab /etc/cron.d/update-cron
-RUN chmod +x /etc/cron.d/update-cron && \
-	touch /var/log/cron.log && \
-	ln -sf /dev/stdout /var/log/cron.log && \
-	/usr/bin/crontab /etc/cron.d/update-cron
-
-ADD entrypoint /usr/local/bin/entrypoint
-RUN chmod +x /usr/local/bin/entrypoint
-
-## Disable xdebug on production
-#RUN rm $PHP_INI_DIR/conf.d/docker-php-ext-xdebug.ini
+ADD crontab /crontab
+RUN /usr/bin/crontab /crontab
 
 ## Cleanup
-RUN composer global remove hirak/prestissimo && \
+RUN apk del dev-deps && \
+    composer global remove hirak/prestissimo && \
     rm /usr/local/bin/composer
 
-ENTRYPOINT ["entrypoint"]
+COPY entrypoint /usr/local/bin/entrypoint
+RUN	chmod +x /usr/local/bin/entrypoint
+## Change files owner to php-fpm default user
+RUN mkdir -p /opt/youtube-dl/downloads && \
+	chown -R www-data:www-data ./ /opt/youtube-dl/downloads && \
+	chmod -R 0755 /etc/youtube-dl.conf /opt/youtube-dl/downloads
+
+CMD ["entrypoint"]
