@@ -14,6 +14,7 @@ RUN apk update && \
     apk add --no-cache \
     	ffmpeg \
     	icu-dev \
+	    gettext \
     	git \
     	libxml2-dev \
     	libzip-dev \
